@@ -21,7 +21,7 @@ const PORT_A = 9500 + Math.floor(Math.random() * 200);
 const PORT_B = 9800 + Math.floor(Math.random() * 150);
 const BASE = process.argv[2] ?? "http://localhost:5173";
 const OUT = process.argv[3] ?? "/home/kiter/buuniex/docs/submission/rakshak-demo.mp4";
-const SPEED = process.env.DEMO_SPEED ?? "0.6";
+const SPEED = process.env.DEMO_SPEED ?? "1";
 const sessionId = `video-${Date.now().toString(36)}`;
 const workDir = mkdtempSync(join(tmpdir(), "rakshak-video-"));
 const framesDir = join(workDir, "frames");
@@ -120,6 +120,20 @@ async function main() {
   const a = await attach(PORT_A, `/call/${sessionId}`);
   const b = await attach(PORT_B, `/room/${sessionId}`);
 
+  // Make sure the viewing tab actually rendered before we record it.
+  for (let i = 0; i < 30; i += 1) {
+    const rendered = await b
+      .evaluate(`document.body && document.body.innerText.includes("Family War Room")`)
+      .catch(() => false);
+    if (rendered) break;
+    await b.send("Page.navigate", { url: `${BASE}/room/${sessionId}` }).catch(() => undefined);
+    await delay(1500);
+  }
+  const roomReady = await b
+    .evaluate(`document.body && document.body.innerText.includes("Family War Room")`)
+    .catch(() => false);
+  console.log(`war room rendered: ${roomReady}`);
+
   let frameIndex = 0;
   let lastFrameTime = null;
   let firstFrameWallMs = null;
@@ -199,48 +213,36 @@ async function main() {
   writeFileSync(snapshotPath, JSON.stringify(snapshot, null, 2));
 
   console.log("touring recovery surfaces in the viewing tab…");
-  const tour = async (path, seconds) => {
+  const tour = async (path, holdSeconds, waitFor) => {
     await b.send("Page.navigate", { url: `${BASE}${path}` });
-    await delay(seconds * 1000);
+    if (waitFor) {
+      const deadline = Date.now() + 25000;
+      while (Date.now() < deadline) {
+        const found = await b
+          .evaluate(`document.body.innerText.includes(${JSON.stringify(waitFor)})`)
+          .catch(() => false);
+        if (found) break;
+        await delay(800);
+      }
+    } else {
+      await delay(1500);
+    }
+    await delay(holdSeconds * 1000);
   };
-  await tour(`/evidence/${sessionId}`, 8);
-  await tour("/genome", 8);
+  await tour(`/evidence/${sessionId}`, 6, "Complaint draft");
+  await tour("/genome", 5, "Scam Genome");
 
   capturing = false;
   await captureLoop;
   await delay(400);
 
-  console.log("rebuilding audio track…");
-  const audioPath = join(workDir, "mix.mp3");
+  writeFileSync(join(workDir, "meta.json"), JSON.stringify({ sessionId, clickTime, firstFrameWallMs, timeline }));
+  console.log("building narrated video…");
   await new Promise((resolve, reject) => {
-    const child = spawn(
-      "node",
-      [join(process.cwd(), "scripts", "build-demo-audio.mjs"), snapshotPath, String(clickTime), audioPath, String(firstFrameWallMs ?? clickTime)],
-      { stdio: "inherit" }
-    );
-    child.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`audio build exited ${code}`))));
+    const child = spawn("node", [join(process.cwd(), "scripts", "build-demo-video.mjs"), workDir, OUT], { stdio: "inherit" });
+    child.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`video build exited ${code}`))));
   });
 
-  const lines = [];
-  for (let i = 0; i < timeline.length; i += 1) {
-    lines.push(`file '${join(framesDir, `frame-${String(i + 1).padStart(6, "0")}.jpg`)}'`);
-    lines.push(`duration ${timeline[i]}`);
-  }
-  lines.push(`file '${join(framesDir, `frame-${String(timeline.length).padStart(6, "0")}.jpg`)}'`);
-  const listPath = join(workDir, "frames.txt");
-  writeFileSync(listPath, lines.join("\n"));
-
-  await run("ffmpeg", [
-    "-hide_banner", "-loglevel", "error", "-y",
-    "-f", "concat", "-safe", "0", "-i", listPath,
-    "-i", audioPath,
-    "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2,scale=1280:-2,fps=12",
-    "-c:v", "libx264", "-preset", "veryfast", "-crf", "25", "-pix_fmt", "yuv420p",
-    "-c:a", "aac", "-b:a", "128k",
-    OUT
-  ]);
-
-  console.log(`video written: ${OUT} (${frameIndex} frames)`);
   a.close();
   b.close();
   chromeA.kill("SIGKILL");

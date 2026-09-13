@@ -115,6 +115,8 @@ export class CallAgent extends InputAgent<Env> {
   #decoyBusy = false;
   #lastDecoyUtteranceId: string | null = null;
   #recentTexts: string[] = [];
+  #audioChunks: Uint8Array[] = [];
+  #audioBytes = 0;
   #lastUtterance = "";
 
   get sessionId(): string {
@@ -188,8 +190,10 @@ export class CallAgent extends InputAgent<Env> {
       return;
     }
     if (type === "demo.ended") {
-      // Give pending utterances a window to finalise before building evidence.
+      // Give pending utterances a window to finalise, and run a full-audio
+      // transcription pass so captured identifiers are complete.
       this.#log("policy", "ok", "session", 0, "demo audio complete; flushing transcript before finalising");
+      await this.#finalTranscriptionPass();
       await this.schedule(22, "finalizeSession", { reason: "demo_complete" });
       return;
     }
@@ -229,19 +233,46 @@ export class CallAgent extends InputAgent<Env> {
     this.#emit({ type: "transcript.final", utterance });
 
     const windowed = this.#recentUtterances(3).map((u) => u.text).join(" ");
-    const found = [...extractIdentifiers(this.sessionId, clean), ...extractIdentifiers(this.sessionId, windowed)];
+    this.#storeIdentifiers([...extractIdentifiers(this.sessionId, clean), ...extractIdentifiers(this.sessionId, windowed)]);
+
+    void this.#scheduleClassify();
+  }
+
+  #storeIdentifiers(found: Identifier[]): void {
     const seen = new Set<string>();
     for (const identifier of found) {
       const key = `${identifier.type}:${identifier.value}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      const existing = [...this.sql`SELECT id FROM identifiers WHERE type = ${identifier.type} AND value = ${identifier.value} LIMIT 1`] as Array<{ id: string }>;
-      if (existing.length > 0) continue;
+      const existing = [
+        ...this.sql`SELECT id, value FROM identifiers WHERE type = ${identifier.type}`
+      ] as Array<{ id: string; value: string }>;
+      let skip = false;
+      for (const row of existing) {
+        if (row.value === identifier.value) {
+          skip = true;
+          break;
+        }
+        // Keep the longest form of the same account/phone number when a chunk
+        // boundary produced a truncated capture.
+        if (identifier.type !== "upi") {
+          const longer = identifier.value.length > row.value.length ? identifier.value : row.value;
+          const shorter = longer === identifier.value ? row.value : identifier.value;
+          if ((longer.startsWith(shorter) || longer.endsWith(shorter)) && shorter.length >= 6) {
+            if (longer === identifier.value) {
+              this.sql`DELETE FROM identifiers WHERE id = ${row.id}`;
+              this.#emit({ type: "identifier.removed", id: row.id });
+            } else {
+              skip = true;
+              break;
+            }
+          }
+        }
+      }
+      if (skip) continue;
       this.#insertIdentifier(identifier);
       this.#emit({ type: "identifier.found", identifier });
     }
-
-    void this.#scheduleClassify();
   }
 
   #isNearDuplicate(text: string): boolean {
@@ -267,6 +298,10 @@ export class CallAgent extends InputAgent<Env> {
       const binary = atob(base64);
       const bytes = new Uint8Array(binary.length);
       for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      if (this.#audioBytes < 16000 * 2 * 300) {
+        this.#audioChunks.push(bytes);
+        this.#audioBytes += bytes.length;
+      }
       const started = Date.now();
       const result = await transcribePcm(this.env, bytes, this.#loadMeta().language);
       this.#log("stt", result.fallback ? "fallback" : "ok", result.model, Date.now() - started, `batch ${(bytes.length / 32000).toFixed(1)}s audio`);
@@ -275,9 +310,36 @@ export class CallAgent extends InputAgent<Env> {
       this.#log(
         "stt",
         "error",
-        "whisper",
+        "deepgram",
         0,
         `batch transcription failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /** One high-accuracy pass over the whole call, used to complete identifiers. */
+  async #finalTranscriptionPass(): Promise<void> {
+    if (this.#audioChunks.length === 0) return;
+    try {
+      const total = this.#audioChunks.reduce((sum, chunk) => sum + chunk.length, 0);
+      const merged = new Uint8Array(total);
+      let offset = 0;
+      for (const chunk of this.#audioChunks) {
+        merged.set(chunk, offset);
+        offset += chunk.length;
+      }
+      this.#audioChunks = [];
+      this.#audioBytes = 0;
+      const result = await transcribePcm(this.env, merged, this.#loadMeta().language);
+      this.#log("stt", "ok", result.model, result.latencyMs, `final pass ${(total / 32000).toFixed(1)}s audio`);
+      this.#storeIdentifiers(extractIdentifiers(this.sessionId, result.text));
+    } catch (error) {
+      this.#log(
+        "stt",
+        "error",
+        "deepgram/final",
+        0,
+        `final pass failed: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }

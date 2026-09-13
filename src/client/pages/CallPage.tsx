@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { VoiceClient } from "@cloudflare/voice/client";
 import type { Intervention, RakshakEvent, SessionSnapshot } from "../../shared/types";
-import { FamilyBadge, PipelinePanel, SeverityMeter, Shell, SnapshotMeta, StageTracker, TranscriptList } from "../components/ui";
+import { FamilyBadge, Icon, PipelinePanel, SeverityMeter, Shell, SnapshotMeta, StageTracker, TranscriptList } from "../components/ui";
 import { SpeechController } from "../lib/audio-controller";
 import { FileAudioInput } from "../lib/file-audio-input";
 import { RecordingMix } from "../lib/recording-mix";
@@ -287,8 +287,8 @@ export default function CallPage({ sessionId }: { sessionId: string }) {
           <div className="mt-5" data-testid="severity">
             <SeverityMeter severity={session.peakSeverity} peak />
             {session.alerts.some((alert) => alert.kind === "scam_detected") && (
-              <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-200">
-                ✓ Family alerted in the war room
+              <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-200">
+                <Icon name="check" /> Family alerted in the war room
               </div>
             )}
             {currentRisk && (
@@ -319,24 +319,24 @@ export default function CallPage({ sessionId }: { sessionId: string }) {
               <>
                 <button
                   onClick={() => void start("demo")}
-                  className="rounded-xl bg-emerald-400 px-5 py-3 font-semibold text-ink shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-300"
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-400 px-5 py-3 font-semibold text-ink shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-300"
                 >
-                  ▶ Play the scam call (live pipeline)
+                  <Icon name="play" /> Play the scam call (live pipeline)
                 </button>
                 <button
                   onClick={() => void start("mic")}
-                  className="rounded-xl border border-line bg-panel px-5 py-3 text-sm text-emerald-100 transition hover:bg-panel-2"
+                  className="inline-flex items-center gap-2 rounded-xl border border-line bg-panel px-5 py-3 text-sm text-emerald-100 transition hover:bg-panel-2"
                 >
-                  🎙 Use microphone (role-play the scammer)
+                  <Icon name="mic" /> Use microphone (role-play the scammer)
                 </button>
               </>
             ) : (
               <>
                 <button
                   onClick={end}
-                  className="rounded-xl border border-red-400/40 bg-red-500/10 px-5 py-3 text-sm font-semibold text-red-200 transition hover:bg-red-500/20"
+                  className="inline-flex items-center gap-2 rounded-xl border border-red-400/40 bg-red-500/10 px-5 py-3 text-sm font-semibold text-red-200 transition hover:bg-red-500/20"
                 >
-                  ■ End call & build recovery pack
+                  <Icon name="stop" /> End call & build recovery pack
                 </button>
                 <button
                   onClick={() => feedback("false_positive")}

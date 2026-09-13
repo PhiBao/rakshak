@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAgent } from "agents/react";
 import type { RakshakEvent, SessionSnapshot } from "../../shared/types";
-import { EmptyHint, FamilyBadge, PipelinePanel, SeverityMeter, Shell, SnapshotMeta, StageTracker, TranscriptList } from "../components/ui";
+import { EmptyHint, FamilyBadge, Icon, PipelinePanel, SeverityMeter, Shell, SnapshotMeta, StageTracker, TranscriptList } from "../components/ui";
 import { applyEvent, emptySession, formatIST } from "../lib/store";
 
 export default function RoomPage({ sessionId }: { sessionId: string }) {
@@ -83,29 +83,29 @@ export default function RoomPage({ sessionId }: { sessionId: string }) {
               <button
                 disabled={busy}
                 onClick={() => void act("sendWarning")}
-                className="rounded-xl bg-red-500/90 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-400 disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-500/90 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-400 disabled:opacity-50"
               >
-                ⚠ Send guardian warning
+                <Icon name="alert" /> Send guardian warning
               </button>
               <button
                 disabled={busy}
                 onClick={() => void act(session.decoyActive ? "stopDecoy" : "startDecoy")}
-                className="rounded-xl bg-amber-300 px-4 py-2.5 text-sm font-semibold text-ink transition hover:bg-amber-200 disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-300 px-4 py-2.5 text-sm font-semibold text-ink transition hover:bg-amber-200 disabled:opacity-50"
               >
-                {session.decoyActive ? "■ Stop counter-agent" : "🤖 Engage counter-agent"}
+                {session.decoyActive ? (<><Icon name="stop" /> Stop counter-agent</>) : (<><Icon name="bot" /> Engage counter-agent</>)}
               </button>
               <a
                 href="tel:+919999999999"
-                className="rounded-xl border border-line bg-panel px-4 py-2.5 text-center text-sm text-emerald-100 transition hover:bg-panel-2"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-panel px-4 py-2.5 text-center text-sm text-emerald-100 transition hover:bg-panel-2"
               >
-                📞 Call Amma now
+                <Icon name="phone" /> Call Amma now
               </a>
               <button
                 disabled={busy}
                 onClick={() => void act("endCall")}
-                className="rounded-xl border border-line bg-panel px-4 py-2.5 text-sm text-red-200 transition hover:bg-panel-2 disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-panel px-4 py-2.5 text-sm text-red-200 transition hover:bg-panel-2 disabled:opacity-50"
               >
-                ■ End call remotely
+                <Icon name="stop" /> End call remotely
               </button>
             </div>
           </section>

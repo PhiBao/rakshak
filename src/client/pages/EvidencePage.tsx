@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { useAgent } from "agents/react";
 import type { EvidenceBundle } from "../../shared/types";
-import { Shell } from "../components/ui";
+import { Icon, Shell } from "../components/ui";
 import { formatIST } from "../lib/store";
 
 export default function EvidencePage({ sessionId }: { sessionId: string }) {
@@ -9,14 +8,30 @@ export default function EvidencePage({ sessionId }: { sessionId: string }) {
   const [elapsed, setElapsed] = useState(0);
   const [done, setDone] = useState<Record<string, boolean>>({});
   const [copied, setCopied] = useState(false);
-  const agent = useAgent({ agent: "CallAgent", name: sessionId });
 
   useEffect(() => {
-    agent.ready
-      .then(() => agent.call<EvidenceBundle>("getEvidence"))
-      .then((bundle) => setEvidence(bundle))
-      .catch(() => undefined);
-  }, [agent]);
+    let cancelled = false;
+    const load = async (attempt = 0) => {
+      try {
+        const response = await fetch(`/api/sessions/${sessionId}/evidence`);
+        if (!response.ok) throw new Error(`evidence ${response.status}`);
+        const bundle = (await response.json()) as EvidenceBundle;
+        if (!cancelled && bundle) {
+          setEvidence(bundle);
+          return;
+        }
+        throw new Error("empty bundle");
+      } catch {
+        if (!cancelled && attempt < 8) {
+          window.setTimeout(() => void load(attempt + 1), 1500);
+        }
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -99,9 +114,9 @@ export default function EvidencePage({ sessionId }: { sessionId: string }) {
             <div className="flex flex-wrap items-center gap-3">
               <a
                 href="tel:1930"
-                className="rounded-xl bg-emerald-400 px-5 py-3 font-semibold text-ink transition hover:bg-emerald-300"
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-400 px-5 py-3 font-semibold text-ink transition hover:bg-emerald-300"
               >
-                📞 Call 1930 now
+                <Icon name="phone" /> Call 1930 now
               </a>
               <a
                 href="https://cybercrime.gov.in"
@@ -191,7 +206,7 @@ export default function EvidencePage({ sessionId }: { sessionId: string }) {
 
           <section className="card p-5">
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-widest text-mist/70">Timeline</h2>
-            <div className="mono max-h-[300px] overflow-y-auto text-[11px] leading-relaxed">
+            <div className="max-h-[300px] overflow-y-auto text-[11px] leading-relaxed">
               {evidence.timeline.slice(-60).map((entry, index) => (
                 <div key={`${entry.ts}-${index}`} className="flex gap-2 border-b border-line/40 py-1">
                   <span className="text-mist/40">{formatIST(entry.ts)}</span>

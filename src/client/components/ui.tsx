@@ -13,6 +13,68 @@ export function Logo({ size = 34 }: { size?: number }) {
   );
 }
 
+export type IconName = "play" | "mic" | "stop" | "phone" | "bot" | "alert" | "check" | "arrow-right" | "external";
+
+const ICONS: Record<IconName, React.ReactNode> = {
+  play: <polygon points="6 4 20 12 6 20 6 4" fill="currentColor" stroke="none" />,
+  mic: (
+    <>
+      <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z" />
+      <path d="M19 11a7 7 0 0 1-14 0" />
+      <path d="M12 18v3" />
+    </>
+  ),
+  stop: <rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor" stroke="none" />,
+  phone: (
+    <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z" />
+  ),
+  bot: (
+    <>
+      <rect x="5" y="8" width="14" height="11" rx="3" />
+      <path d="M12 8V4M9 13h.01M15 13h.01" />
+    </>
+  ),
+  alert: (
+    <>
+      <path d="M12 4 3 19h18L12 4Z" />
+      <path d="M12 10v4M12 17h.01" />
+    </>
+  ),
+  check: <path d="m5 13 4 4L19 7" />,
+  "arrow-right": (
+    <>
+      <path d="M5 12h14" />
+      <path d="m13 6 6 6-6 6" />
+    </>
+  ),
+  external: (
+    <>
+      <path d="M14 4h6v6" />
+      <path d="M20 4 11 13" />
+      <path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
+    </>
+  )
+};
+
+export function Icon({ name, size = 16, className }: { name: IconName; size?: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      {ICONS[name]}
+    </svg>
+  );
+}
+
 export function Shell({ children, active }: { children: React.ReactNode; active?: string }) {
   const links: Array<{ href: string; label: string; key: string }> = [
     { href: "/", label: "Demo", key: "demo" },
@@ -52,7 +114,7 @@ export function Shell({ children, active }: { children: React.ReactNode; active?
       </header>
       <main className="mx-auto max-w-7xl px-4 py-6">{children}</main>
       <footer className="mx-auto max-w-7xl px-4 pb-10 pt-4 text-xs text-mist/60">
-        Rakshak · real-time digital-arrest defence for Indian families · AI runs live on Featherless + Cloudflare Workers AI
+        Rakshak · real-time digital-arrest defence for Indian families · Featherless · Deepgram · Cloudflare
       </footer>
     </div>
   );

@@ -54,6 +54,8 @@ export function applyEvent(session: SessionSnapshot, event: RakshakEvent): Sessi
       return { ...session, updatedAt: Date.now(), alerts: upsertById(session.alerts, event.alert) };
     case "identifier.found":
       return { ...session, updatedAt: Date.now(), identifiers: upsertById(session.identifiers, event.identifier) };
+    case "identifier.removed":
+      return { ...session, updatedAt: Date.now(), identifiers: session.identifiers.filter((entry) => entry.id !== event.id) };
     case "decoy.update":
       return { ...session, updatedAt: Date.now(), decoyActive: event.active };
     case "pipeline.log":

@@ -1,4 +1,4 @@
-import { Shell, Stat } from "../components/ui";
+import { Icon, Shell, Stat } from "../components/ui";
 import { navigate, newSessionId } from "../lib/router";
 
 export default function Landing() {
@@ -12,7 +12,7 @@ export default function Landing() {
       <section className="grid gap-8 pt-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
         <div>
           <div className="mb-4 flex flex-wrap gap-2">
-            <span className="chip">🇮🇳 Built for India's digital-arrest crisis</span>
+            <span className="chip">Built for India's digital-arrest crisis</span>
             <span className="chip">Featherless open-weight models</span>
             <span className="chip">Cloudflare realtime</span>
           </div>
@@ -30,9 +30,9 @@ export default function Landing() {
           <div className="mt-7 flex flex-wrap items-center gap-3">
             <button
               onClick={startDemo}
-              className="rounded-xl bg-emerald-400 px-6 py-3 text-base font-semibold text-ink shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-300"
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-400 px-6 py-3 text-base font-semibold text-ink shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-300"
             >
-              ▶ Run the digital-arrest demo
+              <Icon name="play" /> Run the digital-arrest demo
             </button>
             <button
               onClick={() => navigate("/genome")}

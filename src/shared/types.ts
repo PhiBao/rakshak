@@ -117,6 +117,7 @@ export type RakshakEvent =
   | { type: "decoy.update"; active: boolean; line?: string }
   | { type: "audio.speak"; role: "guardian" | "decoy"; text: string; audio: string; format: string }
   | { type: "identifier.found"; identifier: Identifier }
+  | { type: "identifier.removed"; id: string }
   | { type: "recovery.ready"; evidenceUrl: string; complaintDraft: string }
   | { type: "pipeline.log"; log: PipelineLog }
   | { type: "genome.updated"; scriptKey: string; callCount: number }

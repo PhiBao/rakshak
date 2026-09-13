@@ -51,7 +51,7 @@ body {
 }
 
 .mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Noto Sans Devanagari", monospace;
 }
 
 .pulse-ring {
