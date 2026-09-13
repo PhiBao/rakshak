@@ -89,9 +89,12 @@ const NARRATION = {
     "This is Rakshak: an A.I. that sits inside the call, and fights back."
   ].join(" "),
   early: "This is a recorded scam call, streaming through Rakshak's live pipeline. The caller is impersonating a C.B.I. officer.",
-  warning: "He orders her to tell no one. Rakshak flags the isolation tactic, interrupts in Hindi, and alerts her family while the call is still happening.",
-  decoy: "Then it fights back. A counter-agent takes over the line, stalls the scammer, and makes him repeat his payment details. The account number and U.P.I. I.D. are captured as evidence.",
-  recovery: "The golden-hour pack turns the call into a complaint draft for 1930 and a bank freeze checklist. The call's fingerprint is added to the Scam Genome.",
+  warning: "He orders her to tell no one. Rakshak flags the isolation tactic, interrupts in Hindi, and alerts her family while the call is still happening. Then it fights back: a counter-agent stalls the scammer and captures his payment details.",
+  callEnded: "The call is over. Rakshak has already turned it into an evidence pack: the full transcript, the risk timeline, and the caller's own payment identifiers.",
+  recovery: "This is the golden-hour pack: a complaint draft for the 1930 helpline and cybercrime.gov.in, the scammer's account and U.P.I. I.D., and a checklist to freeze the money.",
+  identifiers: "These are the scammer's own identifiers, captured as evidence — the account number and the U.P.I. I.D., ready for the complaint.",
+  genome: "And every detected call feeds the Scam Genome — script fingerprints and scammer identifiers that protect the next family before the call even arrives.",
+  closing: "In under a minute: a scam interrupted, a family alerted, and a complaint ready to file.",
   outro: [
     "Rakshak protects one family at a time. The Scam Genome protects everyone.",
     "Blocklists stop numbers. Rakshak understands the script, and turns every call into a trap."
@@ -201,33 +204,55 @@ async function main() {
 
   // Narration inside the demo segment, in playback order.
   const warnTs = (snapshot.interventions ?? []).find((entry) => entry.kind === "warn")?.ts;
-  const firstDecoy = (snapshot.utterances ?? []).find((utterance) => utterance.speaker === "decoy")?.ts;
   const lastUtterance = (snapshot.utterances ?? []).at(-1)?.ts;
-  const rel = (ts) => (ts ? Math.max(0, (ts - videoStartMs) / 1000) : 0);
+  const tourMarks = meta.tourMarks ?? {};
 
-  const narrationPlan = [
-    { key: "early", start: 1.2 },
-    { key: "warning", start: warnTs ? Math.max(1.2, rel(warnTs) - 1.0) : 30 },
-    { key: "decoy", start: firstDecoy ? Math.max(1.2, rel(firstDecoy) - 1.0) : 55 },
-    { key: "recovery", start: lastUtterance ? Math.max(1.2, rel(lastUtterance) - 2.0) : demoDur - 12 }
-  ];
+  // The guardian voice is diegetic and stays at its real moment. The counter-
+  // agent voices use only the first two lines, and every narration is placed
+  // sequentially so no two voices ever overlap.
+  const guardian = inApp.filter((line) => line.role === "guardian").sort((a, b) => a.ts - b.ts)[0];
+  const decoys = inApp.filter((line) => line.role === "decoy").sort((a, b) => a.ts - b.ts).slice(0, 2);
+  const voiceTrack = [];
 
-  const voiceTrack = []; // { file, startSec, role }
-  let cursor = 0;
-  for (const item of narrationPlan) {
-    const entry = narration[item.key];
-    const start = Math.max(item.start, cursor);
-    voiceTrack.push({ file: entry.file, startSec: start, role: "narration" });
-    cursor = start + entry.duration + 0.25;
+  {
+    const entry = narration.early;
+    voiceTrack.push({ file: entry.file, startSec: 1.2, duration: entry.duration, role: "narration:early" });
   }
-
-  let ttsCursor = 0;
-  for (const line of inApp.sort((a, b) => a.ts - b.ts)) {
-    const wanted = Math.max(callOffsetMs, line.ts - videoStartMs) / 1000;
-    const start = Math.max(wanted, ttsCursor);
-    voiceTrack.push({ file: line.file, startSec: start, role: line.role });
-    ttsCursor = start + line.duration + 0.2;
+  if (guardian) {
+    const start = Math.max(0.5, (guardian.ts - videoStartMs) / 1000);
+    voiceTrack.push({ file: guardian.file, startSec: start, duration: guardian.duration, role: "guardian" });
   }
+  let cursor = voiceTrack.reduce((max, line) => Math.max(max, line.startSec + line.duration), 0);
+
+  const placeSequential = (key, intended) => {
+    const entry = narration[key];
+    const start = Math.max(intended ?? 0, cursor + 0.3);
+    voiceTrack.push({ file: entry.file, startSec: start, duration: entry.duration, role: `narration:${key}` });
+    cursor = start + entry.duration;
+    return start;
+  };
+
+  placeSequential("warning", warnTs ? Math.max(2, (warnTs - videoStartMs) / 1000) : undefined);
+  for (const decoy of decoys) {
+    const start = Math.max((decoy.ts - videoStartMs) / 1000, cursor + 0.3);
+    voiceTrack.push({ file: decoy.file, startSec: start, duration: decoy.duration, role: "decoy" });
+    cursor = start + decoy.duration;
+  }
+  placeSequential("callEnded", lastUtterance ? (lastUtterance - videoStartMs) / 1000 + 2 : undefined);
+  placeSequential("recovery", tourMarks.evidence ? (tourMarks.evidence - videoStartMs) / 1000 + 0.8 : undefined);
+  placeSequential("identifiers", undefined);
+  placeSequential("genome", tourMarks.genome ? (tourMarks.genome - videoStartMs) / 1000 + 0.8 : undefined);
+  placeSequential("closing", Math.max(0, demoDur + 2));
+
+  voiceTrack.sort((a, b) => a.startSec - b.startSec);
+  const overlapsFound = voiceTrack.filter((line, index) => {
+    const next = voiceTrack[index + 1];
+    return next && line.startSec + line.duration > next.startSec + 0.05;
+  });
+  console.log(
+    `voices: ${voiceTrack.map((line) => `${line.role}@${line.startSec.toFixed(1)}`).join(" ")}`
+  );
+  console.log(`voice overlaps: ${overlapsFound.length === 0 ? "none" : overlapsFound.map((l) => l.role).join(", ")}`);
 
   // Duck the call audio under every voice line.
   const duckIntervals = voiceTrack.map((line) => [line.startSec - 0.15, line.startSec + line.duration + 0.25]);
@@ -268,8 +293,8 @@ async function main() {
     "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2,scale=1280:-2,fps=12",
     "-c:v", "libx264", "-preset", "veryfast", "-crf", "24", "-pix_fmt", "yuv420p",
     "-c:a", "aac", "-b:a", "144k",
-    "-af", `apad=whole_dur=${(demoDur + 0.5).toFixed(2)}`,
-    "-t", demoDur.toFixed(2),
+    "-af", `apad=whole_dur=${(demoDur + 5.5).toFixed(2)}`,
+    "-t", (demoDur + 5).toFixed(2),
     join(buildDir, "demo.mp4")
   ]);
 

@@ -213,7 +213,9 @@ async function main() {
   writeFileSync(snapshotPath, JSON.stringify(snapshot, null, 2));
 
   console.log("touring recovery surfaces in the viewing tab…");
-  const tour = async (path, holdSeconds, waitFor) => {
+  const tourMarks = {};
+  const tour = async (path, holdSeconds, waitFor, markKey) => {
+    tourMarks[markKey] = Date.now();
     await b.send("Page.navigate", { url: `${BASE}${path}` });
     if (waitFor) {
       const deadline = Date.now() + 25000;
@@ -229,14 +231,14 @@ async function main() {
     }
     await delay(holdSeconds * 1000);
   };
-  await tour(`/evidence/${sessionId}`, 6, "Complaint draft");
-  await tour("/genome", 5, "Scam Genome");
+  await tour(`/evidence/${sessionId}`, 6, "Complaint draft", "evidence");
+  await tour("/genome", 5, "Scam Genome", "genome");
 
   capturing = false;
   await captureLoop;
   await delay(400);
 
-  writeFileSync(join(workDir, "meta.json"), JSON.stringify({ sessionId, clickTime, firstFrameWallMs, timeline }));
+  writeFileSync(join(workDir, "meta.json"), JSON.stringify({ sessionId, clickTime, firstFrameWallMs, timeline, tourMarks }));
   console.log("building narrated video…");
   await new Promise((resolve, reject) => {
     const child = spawn("node", [join(process.cwd(), "scripts", "build-demo-video.mjs"), workDir, OUT], { stdio: "inherit" });
