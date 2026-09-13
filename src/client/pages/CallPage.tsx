@@ -4,6 +4,7 @@ import type { Intervention, RakshakEvent, SessionSnapshot } from "../../shared/t
 import { FamilyBadge, PipelinePanel, SeverityMeter, Shell, SnapshotMeta, StageTracker, TranscriptList } from "../components/ui";
 import { SpeechController } from "../lib/audio-controller";
 import { FileAudioInput } from "../lib/file-audio-input";
+import { RecordingMix } from "../lib/recording-mix";
 import { applyEvent, emptySession } from "../lib/store";
 import { navigate } from "../lib/router";
 
@@ -22,9 +23,11 @@ export default function CallPage({ sessionId }: { sessionId: string }) {
   const [elapsed, setElapsed] = useState(0);
 
   const clientRef = useRef<VoiceClient | null>(null);
+  const agentRef = useRef<{ send: (data: string) => void; close: () => void } | null>(null);
   const inputRef = useRef<FileAudioInput | null>(null);
   const speechRef = useRef<SpeechController>(new SpeechController());
   const cleanupRef = useRef<Array<() => void>>([]);
+  const retryRef = useRef(0);
 
   const currentRisk = session.riskEvents.at(-1);
   const highRisk = session.peakSeverity >= 55;
@@ -38,6 +41,7 @@ export default function CallPage({ sessionId }: { sessionId: string }) {
       for (const off of cleanupRef.current) off();
       clientRef.current?.endCall();
       clientRef.current?.disconnect();
+      agentRef.current?.close();
       inputRef.current?.stop();
       speechRef.current.stop();
     };
@@ -83,6 +87,23 @@ export default function CallPage({ sessionId }: { sessionId: string }) {
     []
   );
 
+  const sendAction = (payload: Record<string, unknown>) => {
+    if (clientRef.current) clientRef.current.sendJSON(payload);
+    else if (agentRef.current) agentRef.current.send(JSON.stringify(payload));
+  };
+
+  const exposeDebugHooks = () => {
+    const w = window as unknown as Record<string, unknown>;
+    w.__rakshakStartDecoy = () => sendAction({ type: "action", action: "decoy_start" });
+    w.__rakshakEndCall = () => sendAction({ type: "action", action: "end_session" });
+    w.__rakshakAudio = () => {
+      const audio = inputRef.current?.audio;
+      return audio
+        ? { currentTime: audio.currentTime, duration: audio.duration, paused: audio.paused, ended: audio.ended, volume: audio.volume }
+        : null;
+    };
+  };
+
   const start = async (mode: Mode) => {
     if (running !== "idle") return;
     setError(null);
@@ -91,22 +112,68 @@ export default function CallPage({ sessionId }: { sessionId: string }) {
     setElapsed(0);
     setProgress(0);
     try {
-      const demoInput = mode === "demo"
-        ? new FileAudioInput("/demo/call-digital-arrest.mp3", {
-            speed: Number(new URLSearchParams(window.location.search).get("speed") ?? "1") || 1
-          })
-        : null;
-      if (demoInput) {
-        inputRef.current = demoInput;
-        speechRef.current.attach(demoInput);
-        demoInput.onProgress = (fraction) => setProgress(fraction);
+      const params = new URLSearchParams(window.location.search);
+      const shouldRecord = params.get("record") === "1";
+      const mix = shouldRecord ? new RecordingMix() : null;
+      if (mix) {
+        await mix.resume();
+        speechRef.current.attachMix(mix);
+        (window as unknown as Record<string, unknown>).__rakshakRecordStartedAt = Date.now();
+        (window as unknown as Record<string, unknown>).__rakshakRecording = {
+          stop: async () => {
+            const blob = await mix.stop();
+            const bytes = new Uint8Array(await blob.arrayBuffer());
+            let binary = "";
+            for (let i = 0; i < bytes.length; i += 0x8000) {
+              binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+            }
+            return { base64: btoa(binary), type: blob.type };
+          }
+        };
       }
 
-      const client = new VoiceClient({
-        agent: "CallAgent",
-        name: sessionId,
-        ...(demoInput ? { audioInput: demoInput } : {})
-      });
+      const speed = Number(params.get("speed") ?? "0.8") || 0.8;
+      const steps: string[] = [];
+      (window as unknown as Record<string, unknown>).__rakshakSteps = steps;
+      const step = (label: string) => {
+        steps.push(`${new Date().toISOString().slice(11, 19)} ${label}`);
+      };
+
+      if (mode === "demo") {
+        // Recorded-call demo path: batch transcription over a plain agent socket.
+        const { AgentClient } = await import("agents/client");
+        const agent = new AgentClient({ agent: "CallAgent", name: sessionId, host: window.location.host });
+        agentRef.current = agent;
+        cleanupRef.current = [];
+        step("connecting (batch)");
+        await agent.ready;
+        step("connected");
+        const onMessage = (event: MessageEvent) => handleEvent(event.data);
+        agent.addEventListener("message", onMessage);
+        cleanupRef.current.push(() => agent.removeEventListener("message", onMessage));
+        agent.send(JSON.stringify({ type: "session.start", mode, language, autoDecoy: true }));
+
+        const input = new FileAudioInput("/demo/call-digital-arrest.mp3", {
+          speed,
+          ...(mix ? { mix } : {}),
+          batch: {
+            chunkSeconds: 8,
+            onChunk: (pcm) => agent.send(JSON.stringify({ type: "audio.chunk", pcm: base64FromBytes(pcm) }))
+          }
+        });
+        inputRef.current = input;
+        speechRef.current.attach(input);
+        input.onProgress = (fraction) => setProgress(fraction);
+        input.onEnded = () => agent.send(JSON.stringify({ type: "demo.ended" }));
+        await input.start();
+        step("streaming demo audio");
+        exposeDebugHooks();
+        setRunning("demo");
+        return;
+      }
+
+      // Live microphone path: streaming STT through the voice pipeline.
+      const client = new VoiceClient({ agent: "CallAgent", name: sessionId });
       clientRef.current = client;
       cleanupRef.current = [];
 
@@ -118,17 +185,23 @@ export default function CallPage({ sessionId }: { sessionId: string }) {
       add("interimtranscript", (text: string | null) => setInterim(text));
       add("statuschange", (value: string) => setStatus(value));
       add("error", (message: string | null) => setError(message));
-      add("voiceerror", (value: { message?: string }) => setError(value?.message ?? "voice pipeline error"));
-
-      if (demoInput) {
-        demoInput.onEnded = () => client.sendJSON({ type: "demo.ended" });
-      }
-
-      const steps: string[] = [];
-      (window as unknown as Record<string, unknown>).__rakshakSteps = steps;
-      const step = (label: string) => {
-        steps.push(`${new Date().toISOString().slice(11, 19)} ${label}`);
-      };
+      add("voiceerror", (value: { message?: string; retryable?: boolean }) => {
+        setError(value?.message ?? "voice pipeline error");
+        const attempt = retryRef.current + 1;
+        if (attempt <= 3) {
+          retryRef.current = attempt;
+          window.setTimeout(async () => {
+            try {
+              client.endCall();
+              await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
+              await client.startCall();
+              setError(`reconnected to speech recognition (attempt ${attempt})`);
+            } catch {
+              setError("speech recognition reconnect failed");
+            }
+          }, 600);
+        }
+      });
 
       step("connecting");
       client.connect();
@@ -138,10 +211,12 @@ export default function CallPage({ sessionId }: { sessionId: string }) {
       step(`connected=${client.connected}`);
       step("starting call");
       await client.startCall();
+      mix?.start();
       step("call started");
       client.sendJSON({ type: "session.start", mode, language, autoDecoy: true });
+      exposeDebugHooks();
       step("session.start sent");
-      setRunning(mode);
+      setRunning("mic");
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Could not start the call";
       (window as unknown as Record<string, unknown>).__rakshakStartError = message;
@@ -152,17 +227,17 @@ export default function CallPage({ sessionId }: { sessionId: string }) {
   };
 
   const end = () => {
-    clientRef.current?.sendJSON({ type: "action", action: "end_session" });
+    sendAction({ type: "action", action: "end_session" });
     setTimeout(() => {
       inputRef.current?.stop();
       clientRef.current?.endCall();
       clientRef.current?.disconnect();
       setRunning("idle");
-    }, 600);
+    }, 900);
   };
 
   const feedback = (label: "scam" | "false_positive") => {
-    clientRef.current?.sendJSON({ type: "feedback", label });
+    sendAction({ type: "feedback", label });
   };
 
   return (
@@ -276,7 +351,7 @@ export default function CallPage({ sessionId }: { sessionId: string }) {
           {error && <p className="mt-3 text-xs text-red-300">{error}</p>}
 
           <div className="mt-5 flex flex-wrap gap-2">
-            <span className="chip">STT · Workers AI Flux</span>
+            <span className="chip">STT · Whisper (batch) · Flux (live)</span>
             <span className="chip">Reasoning · Featherless {session.riskEvents.at(-1)?.model ?? "DeepSeek-V4-Flash"}</span>
             <span className="chip">Voice · Featherless Kokoro</span>
           </div>
@@ -332,6 +407,15 @@ function Logo() {
       <path fill="#04110d" d="M15 9h2v9h-2zM15 21h2v2h-2z" />
     </svg>
   );
+}
+
+function base64FromBytes(bytes: Uint8Array): string {
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
 }
 
 function formatElapsed(seconds: number): string {

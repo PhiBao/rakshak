@@ -35,7 +35,7 @@ Every existing tool stops at *who is calling*. The fraud happens *inside the cal
 
 ## What it does
 
-1. **Listen** — Streaming speech recognition (Workers AI Deepgram Flux/Nova-3) transcribes the
+1. **Listen** — Streaming speech recognition (Deepgram Nova-3; Workers AI as fallback) transcribes the
    mixed call audio. A fraud-script classifier (Featherless open-weight LLM) tracks which stage of
    the known playbook the caller is in: authority pretext → accusation → isolation → video
    surveillance → fund verification → extraction.
@@ -57,7 +57,7 @@ Every existing tool stops at *who is calling*. The fraud happens *inside the cal
 Parent device (web/mic)                    Cloudflare edge
 ┌──────────────────┐   WS: audio + events  ┌────────────────────────────────────────┐
 │  Parent Shield   │ ────────────────────► │  Durable Object "CallAgent"            │
-│  (VoiceClient +  │                       │   ├─ STT: Workers AI Flux / Nova-3     │
+│  (VoiceClient +  │                       │   ├─ STT: Deepgram Nova-3 / Workers AI │
 │   file/mic audio)│ ◄──────────────────── │   ├─ Risk: Featherless DeepSeek-V4     │
 └──────────────────┘   transcripts, risk,   │   │   + deterministic rules fallback   │
                        TTS warnings         │   ├─ Script state machine + policy      │
@@ -74,17 +74,19 @@ Parent device (web/mic)                    Cloudflare edge
 
 - **Frontend:** Vite + React 19 + Tailwind v4, served as Workers static assets.
 - **Realtime:** Cloudflare Agents SDK (Durable Objects + WebSockets + `@cloudflare/voice` mixin).
-- **Speech-to-text:** Workers AI `@cf/deepgram/flux` (conversational streaming) with keyterms.
+- **Speech-to-text:** Deepgram Nova-3 (real-time streaming for live calls, batch for the recorded demo)
+  with keyterm prompting; Workers AI Flux/Whisper as fallback.
 - **Reasoning:** Featherless `deepseek-ai/DeepSeek-V4-Flash` (OpenAI-compatible, schema-validated
   JSON) with a deterministic rule engine fallback.
 - **Voice:** Featherless `hexgrad/Kokoro-82M` (Hindi + English voices) with Workers AI Aura fallback.
+- **Demo video:** [docs/submission/rakshak-demo.mp4](docs/submission/rakshak-demo.mp4)
 - **State:** Durable Object SQLite for per-session logs; GenomeAgent SQLite for the registry.
 
 ## Run it locally
 
 ```bash
 pnpm install
-cp .env.example .dev.vars   # add FEATHERLESS_API_KEY
+cp .env.example .dev.vars   # add FEATHERLESS_API_KEY and DEEPGRAM_API_KEY
 pnpm dev                    # http://localhost:5173
 ```
 

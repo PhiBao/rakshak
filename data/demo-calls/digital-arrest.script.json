@@ -18,47 +18,42 @@
     {
       "speaker": "caller",
       "text": "Hello, am I speaking with Mrs. Lakshmi Iyer?",
-      "pauseAfterMs": 500
+      "pauseAfterMs": 300
     },
     {
       "speaker": "victim",
       "text": "Yes, who is this?",
-      "pauseAfterMs": 400
+      "pauseAfterMs": 300
     },
     {
       "speaker": "caller",
-      "text": "This is Inspector Sharma from the CBI cyber cell. A case has been registered under your Aadhaar number. A parcel containing narcotics was intercepted in Mumbai.",
-      "pauseAfterMs": 600
+      "text": "This is Inspector Sharma from the CBI cyber cell. A case has been registered under your Aadhaar number for a narcotics parcel intercepted in Mumbai.",
+      "pauseAfterMs": 350
     },
     {
       "speaker": "victim",
       "text": "What? No, that is not possible. I have not sent any parcel.",
-      "pauseAfterMs": 400
+      "pauseAfterMs": 300
     },
     {
       "speaker": "caller",
-      "text": "Madam, listen carefully. This is a money laundering investigation. You are under digital arrest. You must not tell anyone, or we will issue a non-bailable warrant tonight.",
-      "pauseAfterMs": 600
-    },
-    {
-      "speaker": "victim",
-      "text": "Please, I do not understand. What should I do?",
-      "pauseAfterMs": 400
+      "text": "Madam, this is a money laundering investigation and you are under digital arrest. Do not tell anyone, or we will issue a non bailable warrant tonight.",
+      "pauseAfterMs": 350
     },
     {
       "speaker": "caller",
-      "text": "Stay on the video call. Transfer your savings to the RBI verification account. The account number is 5 0 4 1 2 2 3 3 9 9 1 0. And the UPI ID is verifycell at okaxis.",
-      "pauseAfterMs": 500
+      "text": "Stay on the video call and transfer your savings to the RBI verification account. The account number is 5 0 4 1 2 2 3 3 9 9 1 0 and the UPI ID is verifycell at okaxis.",
+      "pauseAfterMs": 300
     },
     {
       "speaker": "victim",
       "text": "Account number 5 0 4 1 2 2 3 3 9 9 1 0. And the UPI ID is verifycell at okaxis?",
-      "pauseAfterMs": 500
+      "pauseAfterMs": 300
     },
     {
       "speaker": "caller",
-      "text": "Yes. The account holder is Suresh Nair at HDFC Bank. Transfer two lakh fifty thousand rupees immediately. Do not hang up. Do not tell your family.",
-      "pauseAfterMs": 900
+      "text": "Yes. Transfer two lakh fifty thousand rupees now. Do not hang up. Do not tell your family.",
+      "pauseAfterMs": 500
     }
   ]
 }

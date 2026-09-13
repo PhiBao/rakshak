@@ -1,4 +1,5 @@
 import type { VoiceAudioInput } from "@cloudflare/voice/client";
+import type { RecordingMix } from "./recording-mix";
 
 /**
  * Streams a pre-recorded call (or any audio file) into the voice pipeline at
@@ -19,10 +20,20 @@ export class FileAudioInput implements VoiceAudioInput {
   #url: string;
   #speed: number;
   #disposed = false;
+  #mix: RecordingMix | null;
+  #startedAt = 0;
+  #endedFired = false;
+  #batch: { chunkSeconds: number; onChunk: (pcm: Uint8Array) => void } | null;
+  #batchBuffer: Uint8Array | null = null;
+  #batchFill = 0;
 
-  constructor(url: string, options?: { speed?: number }) {
+  constructor(url: string, options?: { speed?: number; mix?: RecordingMix; batch?: { chunkSeconds?: number; onChunk: (pcm: Uint8Array) => void } }) {
     this.#url = url;
     this.#speed = options?.speed ?? 1;
+    this.#mix = options?.mix ?? null;
+    this.#batch = options?.batch
+      ? { chunkSeconds: options.batch.chunkSeconds ?? 5, onChunk: options.batch.onChunk }
+      : null;
   }
 
   get duration(): number {
@@ -56,24 +67,45 @@ export class FileAudioInput implements VoiceAudioInput {
     const audio = new Audio(this.#url);
     audio.playbackRate = this.#speed;
     audio.volume = 1;
+    this.#mix?.attach(audio);
     audio.addEventListener("ended", () => {
       if (this.#disposed) return;
       this.#stopTimer();
       this.onEnded?.();
     });
     this.audio = audio;
-    await audio.play();
+    try {
+      await Promise.race([audio.play(), new Promise((resolve) => setTimeout(resolve, 1500))]);
+    } catch {
+      // autoplay was blocked; fall through to the muted fallback below
+    }
+    if (audio.paused) {
+      // Muted playback is always permitted and still advances the clock, so the
+      // pipeline keeps receiving audio even when speakers are blocked.
+      audio.muted = true;
+      try {
+        await audio.play();
+      } catch {
+        // give up silently; the ended handler will not fire
+      }
+    }
 
+    this.#startedAt = performance.now();
+    if (this.#batch && this.#pcm) {
+      this.#batchBuffer = new Uint8Array(this.#batch.chunkSeconds * this.#sampleRate * 2);
+      this.#batchFill = 0;
+    }
     this.#timer = window.setInterval(() => this.#tick(), 40);
   }
 
   #tick(): void {
     const pcm = this.#pcm;
-    const audio = this.audio;
-    if (!pcm || !audio || this.#disposed) return;
-    if (audio.paused) return;
-    const played = Math.floor(audio.currentTime * this.#sampleRate);
-    while (this.#sentSamples < played) {
+    if (!pcm || this.#disposed) return;
+    // The transcription stream is driven by a virtual clock at the chosen
+    // playback rate; the audio element is best-effort speaker output.
+    const elapsedSeconds = (performance.now() - this.#startedAt) / 1000;
+    const target = Math.min(pcm.length, Math.floor(elapsedSeconds * this.#sampleRate * this.#speed));
+    while (this.#sentSamples < target) {
       const end = Math.min(this.#sentSamples + 320, pcm.length);
       if (end <= this.#sentSamples) break;
       const chunk = pcm.subarray(this.#sentSamples, end);
@@ -85,9 +117,43 @@ export class FileAudioInput implements VoiceAudioInput {
       const rms = Math.sqrt(sum / Math.max(1, chunk.length));
       this.onAudioLevel?.(rms);
       this.onAudioData?.(chunk.slice().buffer);
+      this.#appendToBatch(chunk);
       this.#sentSamples = end;
     }
-    if (audio.duration > 0) this.onProgress?.(audio.currentTime / audio.duration, audio.currentTime);
+    this.onProgress?.(this.#sentSamples / pcm.length, this.#sentSamples / this.#sampleRate);
+    if (this.#sentSamples >= pcm.length && !this.#endedFired) {
+      this.#endedFired = true;
+      this.#flushBatch();
+      this.#stopTimer();
+      this.onEnded?.();
+    }
+  }
+
+  #appendToBatch(chunk: Int16Array): void {
+    if (!this.#batch || !this.#batchBuffer) return;
+    const bytes = new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength);
+    let offset = 0;
+    while (offset < bytes.length) {
+      const room = this.#batchBuffer.length - this.#batchFill;
+      const take = Math.min(room, bytes.length - offset);
+      this.#batchBuffer.set(bytes.subarray(offset, offset + take), this.#batchFill);
+      this.#batchFill += take;
+      offset += take;
+      if (this.#batchFill >= this.#batchBuffer.length) {
+        this.#batch.onChunk(this.#batchBuffer.slice());
+        // Keep a short tail so numbers spoken across a boundary survive.
+        const overlapBytes = Math.min(this.#batchBuffer.length, this.#sampleRate * 2 * 5);
+        this.#batchBuffer.copyWithin(0, this.#batchBuffer.length - overlapBytes);
+        this.#batchFill = overlapBytes;
+      }
+    }
+  }
+
+  #flushBatch(): void {
+    if (!this.#batch || !this.#batchBuffer || this.#batchFill === 0) return;
+    const partial = this.#batchBuffer.slice(0, this.#batchFill);
+    this.#batchFill = 0;
+    if (partial.length >= this.#sampleRate) this.#batch.onChunk(partial);
   }
 
   pause(): void {

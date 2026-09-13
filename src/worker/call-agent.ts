@@ -2,11 +2,13 @@ import { Agent, callable, getAgentByName } from "agents";
 import type { Connection, WSMessage } from "agents";
 import { WorkersAIFluxSTT, WorkersAINova3STT, withVoiceInput } from "agents/voice";
 import type { Transcriber } from "agents/voice";
+import { DeepgramSTT } from "@cloudflare/voice-deepgram";
 import { speak } from "./ai/tts";
 import { classify, ruleClassify, toRiskEvent } from "./ai/classifier";
 import type { ClassifyResult } from "./ai/classifier";
 import { generateDecoyLine } from "./ai/decoy";
 import { extractIdentifiers } from "./ai/extract";
+import { transcribePcm } from "./ai/transcribe";
 import { buildEvidence } from "./evidence";
 import type { Env } from "./env";
 import { b64encode, newId } from "./utils";
@@ -105,15 +107,14 @@ const WARNINGS: Record<string, { hi: string; en: string }> = {
     en: "Please be careful. This call looks suspicious. Do not share money or OTPs."
   }
 };
-
-export class CallAgent extends InputAgent<Env> {  transcriber = new WorkersAIFluxSTT(this.env.AI, { keyterms: KEYTERMS });
-
+export class CallAgent extends InputAgent<Env> {
   #meta: Meta | null = null;
   #initialized = false;
   #classifying = false;
   #dirty = false;
   #decoyBusy = false;
   #lastDecoyUtteranceId: string | null = null;
+  #recentTexts: string[] = [];
   #lastUtterance = "";
 
   get sessionId(): string {
@@ -122,10 +123,29 @@ export class CallAgent extends InputAgent<Env> {  transcriber = new WorkersAIFlu
 
   createTranscriber(_connection: Connection): Transcriber {
     const meta = this.#loadMeta();
-    if (meta.stt === "nova3") {
-      return new WorkersAINova3STT(this.env.AI, { language: "hi", keyterms: KEYTERMS });
+    if (this.env.DEEPGRAM_API_KEY) {
+      return new DeepgramSTT({
+        apiKey: this.env.DEEPGRAM_API_KEY,
+        model: "nova-3",
+        language: meta.language === "hi" ? "hi" : "en",
+        smartFormat: false,
+        punctuate: true,
+        endpointingMs: 300
+      });
     }
-    return new WorkersAIFluxSTT(this.env.AI, { keyterms: KEYTERMS });
+    if (meta.stt === "nova3") {
+      return new WorkersAINova3STT(this.env.AI, {
+        language: meta.language === "hi" ? "hi" : "en",
+        keyterms: KEYTERMS,
+        endpointingMs: 300,
+        utteranceEndMs: 1200
+      });
+    }
+    return new WorkersAIFluxSTT(this.env.AI, {
+      keyterms: KEYTERMS,
+      eotThreshold: 0.6,
+      eotTimeoutMs: 3000
+    });
   }
 
   async onStart(): Promise<void> {
@@ -137,7 +157,7 @@ export class CallAgent extends InputAgent<Env> {  transcriber = new WorkersAIFlu
     this.#send(connection, { type: "session.snapshot", session: this.#snapshot() });
   }
 
-  onMessage(connection: Connection, message: WSMessage): void {
+  async onMessage(connection: Connection, message: WSMessage): Promise<void> {
     this.#ensureSchema();
     if (typeof message !== "string") return;
     let payload: Record<string, unknown>;
@@ -160,8 +180,17 @@ export class CallAgent extends InputAgent<Env> {  transcriber = new WorkersAIFlu
       void this.#handleAction(action, connection, payload);
       return;
     }
+    if (type === "audio.chunk") {
+      const base64 = String(payload.pcm ?? "");
+      if (base64.length > 100) {
+        void this.#handleAudioChunk(base64, connection);
+      }
+      return;
+    }
     if (type === "demo.ended") {
-      void this.#finishSession("demo_complete");
+      // Give pending utterances a window to finalise before building evidence.
+      this.#log("policy", "ok", "session", 0, "demo audio complete; flushing transcript before finalising");
+      await this.schedule(22, "finalizeSession", { reason: "demo_complete" });
       return;
     }
     if (type === "feedback") {
@@ -172,11 +201,19 @@ export class CallAgent extends InputAgent<Env> {  transcriber = new WorkersAIFlu
   }
 
   async onTranscript(text: string, connection: Connection): Promise<void> {
+    void connection;
+    await this.#ingestUtterance(text, 0.92);
+  }
+
+  async #ingestUtterance(text: string, confidence: number): Promise<void> {
     this.#ensureSchema();
     const clean = text.trim();
     if (clean.length < 2) return;
     if (clean === this.#lastUtterance) return;
+    if (this.#isNearDuplicate(clean)) return;
     this.#lastUtterance = clean;
+    this.#recentTexts.push(clean);
+    if (this.#recentTexts.length > 4) this.#recentTexts.shift();
     const meta = this.#loadMeta();
     const utterance: Utterance = {
       id: newId("u"),
@@ -184,7 +221,7 @@ export class CallAgent extends InputAgent<Env> {  transcriber = new WorkersAIFlu
       speaker: "unknown",
       text: clean,
       ts: Date.now(),
-      confidence: 0.92,
+      confidence,
       final: true
     };
     this.#insertUtterance(utterance);
@@ -204,8 +241,45 @@ export class CallAgent extends InputAgent<Env> {  transcriber = new WorkersAIFlu
       this.#emit({ type: "identifier.found", identifier });
     }
 
-    void connection;
     void this.#scheduleClassify();
+  }
+
+  #isNearDuplicate(text: string): boolean {
+    const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ").trim();
+    const candidate = normalize(text);
+    if (candidate.length < 12) return false;
+    for (const previous of this.#recentTexts) {
+      const prior = normalize(previous);
+      if (!prior) continue;
+      if (prior === candidate) return true;
+      if (prior.includes(candidate) || candidate.includes(prior)) return true;
+      const priorTokens = new Set(prior.split(" "));
+      const tokens = candidate.split(" ");
+      const overlap = tokens.filter((token) => priorTokens.has(token)).length / Math.max(1, tokens.length);
+      if (overlap > 0.85) return true;
+    }
+    return false;
+  }
+
+  async #handleAudioChunk(base64: string, connection: Connection): Promise<void> {
+    void connection;
+    try {
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      const started = Date.now();
+      const result = await transcribePcm(this.env, bytes, this.#loadMeta().language);
+      this.#log("stt", result.fallback ? "fallback" : "ok", result.model, Date.now() - started, `batch ${(bytes.length / 32000).toFixed(1)}s audio`);
+      await this.#ingestUtterance(result.text, 0.85);
+    } catch (error) {
+      this.#log(
+        "stt",
+        "error",
+        "whisper",
+        0,
+        `batch transcription failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
   }
 
   // ---------------- Callable API (family war room) ----------------
@@ -229,8 +303,7 @@ export class CallAgent extends InputAgent<Env> {  transcriber = new WorkersAIFlu
   }
 
   @callable()
-  async startDecoy(): Promise<SessionSnapshot> {
-    this.#updateMeta({ decoyActive: true });
+  async startDecoy(): Promise<SessionSnapshot> {    this.#updateMeta({ decoyActive: true });
     this.#emit({ type: "decoy.update", active: true });
     this.#recordIntervention("decoy_start", "guardian", "Counter-agent engaged to stall the caller and capture payment identifiers.");
     await this.#raiseAlert("intervention", "Decoy engaged — the scammer is now talking to Rakshak's counter-agent.");
@@ -249,6 +322,10 @@ export class CallAgent extends InputAgent<Env> {  transcriber = new WorkersAIFlu
   getEvidence(): EvidenceBundle {
     this.#ensureSchema();
     return buildEvidence(this.#evidenceInput());
+  }
+
+  async finalizeSession(payload?: { reason?: string }): Promise<void> {
+    await this.#finishSession(payload?.reason ?? "scheduled_finalize");
   }
 
   // ---------------- Internals ----------------

@@ -15,7 +15,7 @@ const CHROME = process.env.CHROME_BIN ?? "/home/kiter/.local/bin/google-chrome";
 const PORT = 9333;
 const BASE = process.argv[2] ?? "http://localhost:5173";
 const sessionId = `e2e-${Date.now().toString(36)}`;
-const url = `${BASE}/call/${sessionId}`;
+const url = `${BASE}/call/${sessionId}?speed=0.6`;
 
 const profile = mkdtempSync(join(tmpdir(), "rakshak-chrome-"));
 const chrome = spawn(

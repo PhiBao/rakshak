@@ -1,4 +1,5 @@
 import type { FileAudioInput } from "./file-audio-input";
+import type { RecordingMix } from "./recording-mix";
 
 interface SpeechItem {
   role: "guardian" | "decoy";
@@ -16,9 +17,14 @@ export class SpeechController {
   #queue: SpeechItem[] = [];
   #busy = false;
   #current: HTMLAudioElement | null = null;
+  #mix: RecordingMix | null = null;
 
   attach(input: FileAudioInput): void {
     this.#input = input;
+  }
+
+  attachMix(mix: RecordingMix): void {
+    this.#mix = mix;
   }
 
   enqueue(item: SpeechItem): void {
@@ -41,6 +47,7 @@ export class SpeechController {
       const item = this.#queue.shift()!;
       const element = new Audio(`data:audio/${item.format};base64,${item.audio}`);
       this.#current = element;
+      this.#mix?.attach(element);
       this.#input?.duck(true);
       await new Promise<void>((resolve) => {
         let settled = false;

@@ -13,6 +13,7 @@ export interface Env {
   FEATHERLESS_TTS_MODEL: string;
   FEATHERLESS_TTS_VOICE_GUARDIAN: string;
   FEATHERLESS_TTS_VOICE_DECOY: string;
+  DEEPGRAM_API_KEY?: string;
 }
 
 export interface Ai {
