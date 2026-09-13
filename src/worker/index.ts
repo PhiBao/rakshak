@@ -12,27 +12,6 @@ export default {
     if (url.pathname === "/api/health") {
       return Response.json({ ok: true, service: "rakshak", ts: Date.now() });
     }
-    if (url.pathname === "/api/debug/stt" && request.method === "POST") {
-      const body = (await request.json()) as { audio?: string; model?: string };
-      const model = body.model ?? "@cf/openai/whisper-large-v3-turbo";
-      if (!body.audio) return Response.json({ error: "audio (base64) required" }, { status: 400 });
-      const bytes = Uint8Array.from(atob(body.audio), (c) => c.charCodeAt(0));
-      const attempts: Array<Record<string, unknown>> = [];
-      const variants: Array<{ label: string; input: unknown }> = [
-        { label: "audio:number[]", input: { audio: Array.from(bytes) } },
-        { label: "audio:b64", input: { audio: body.audio } },
-        { label: "root:b64", input: body.audio }
-      ];
-      for (const variant of variants) {
-        try {
-          const result = (await env.AI.run(model, variant.input as Record<string, unknown>)) as { text?: string };
-          attempts.push({ variant: variant.label, ok: true, text: (result?.text ?? "").slice(0, 120) });
-        } catch (error) {
-          attempts.push({ variant: variant.label, ok: false, error: String(error).slice(0, 240) });
-        }
-      }
-      return Response.json({ model, bytes: bytes.length, attempts });
-    }
     if (url.pathname.startsWith("/api/sessions/") && url.pathname.endsWith("/snapshot")) {
       const sessionId = url.pathname.split("/")[3] ?? "";
       if (!sessionId) return Response.json({ error: "session id required" }, { status: 400 });
