@@ -1,0 +1,81 @@
+{
+  "totalSec": 75.318664,
+  "voices": {
+    "caller": "am_onyx",
+    "victim": "af_heart"
+  },
+  "expectedStages": [
+    "pretext_authority",
+    "accusation",
+    "isolation",
+    "surveillance",
+    "verification_demand",
+    "extraction"
+  ],
+  "disclaimer": "Synthetic demo recording created with Featherless TTS for the Rakshak hackathon demo. The scam script is derived from publicly documented digital-arrest modus operandi. No real person is depicted.",
+  "lines": [
+    {
+      "index": 0,
+      "speaker": "caller",
+      "text": "Hello, am I speaking with Mrs. Lakshmi Iyer?",
+      "startSec": 0,
+      "endSec": 4.341958
+    },
+    {
+      "index": 1,
+      "speaker": "victim",
+      "text": "Yes, who is this?",
+      "startSec": 4.341958,
+      "endSec": 6.316958
+    },
+    {
+      "index": 2,
+      "speaker": "caller",
+      "text": "This is Inspector Sharma from the CBI cyber cell. A case has been registered under your Aadhaar number. A parcel containing narcotics was intercepted in Mumbai.",
+      "startSec": 6.316958,
+      "endSec": 18.966915999999998
+    },
+    {
+      "index": 3,
+      "speaker": "victim",
+      "text": "What? No, that is not possible. I have not sent any parcel.",
+      "startSec": 18.966915999999998,
+      "endSec": 24.096874
+    },
+    {
+      "index": 4,
+      "speaker": "caller",
+      "text": "Madam, listen carefully. This is a money laundering investigation. You are under digital arrest. You must not tell anyone, or we will issue a non-bailable warrant tonight.",
+      "startSec": 24.096874,
+      "endSec": 36.362832
+    },
+    {
+      "index": 5,
+      "speaker": "victim",
+      "text": "Please, I do not understand. What should I do?",
+      "startSec": 36.362832,
+      "endSec": 40.220789999999994
+    },
+    {
+      "index": 6,
+      "speaker": "caller",
+      "text": "Stay on the video call. Transfer your savings to the RBI verification account. The account number is 5 0 4 1 2 2 3 3 9 9 1 0. And the UPI ID is verifycell at okaxis.",
+      "startSec": 40.220789999999994,
+      "endSec": 55.09874799999999
+    },
+    {
+      "index": 7,
+      "speaker": "victim",
+      "text": "Account number 5 0 4 1 2 2 3 3 9 9 1 0. And the UPI ID is verifycell at okaxis?",
+      "startSec": 55.09874799999999,
+      "endSec": 63.832705999999995
+    },
+    {
+      "index": 8,
+      "speaker": "caller",
+      "text": "Yes. The account holder is Suresh Nair at HDFC Bank. Transfer two lakh fifty thousand rupees immediately. Do not hang up. Do not tell your family.",
+      "startSec": 63.832705999999995,
+      "endSec": 75.318664
+    }
+  ]
+}

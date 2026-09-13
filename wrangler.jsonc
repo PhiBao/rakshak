@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "rakshak",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "ai": { "binding": "AI" },
+  "durable_objects": {
+    "bindings": [
+      { "name": "CallAgent", "class_name": "CallAgent" },
+      { "name": "GenomeAgent", "class_name": "GenomeAgent" }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["CallAgent", "GenomeAgent"]
+    }
+  ],
+  "assets": {
+    "not_found_handling": "single-page-application"
+  },
+  "vars": {
+    "FEATHERLESS_BASE_URL": "https://api.featherless.ai/v1",
+    "FEATHERLESS_MODEL_FAST": "deepseek-ai/DeepSeek-V4-Flash",
+    "FEATHERLESS_MODEL_STRONG": "deepseek-ai/DeepSeek-V4-Flash",
+    "FEATHERLESS_TTS_MODEL": "hexgrad/Kokoro-82M",
+    "FEATHERLESS_TTS_VOICE_GUARDIAN": "hf_alpha",
+    "FEATHERLESS_TTS_VOICE_DECOY": "hf_beta"
+  }
+}
