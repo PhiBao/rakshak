@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Rakshak — BunnieX Hackathon submission deck</title>
+    <style>
+      :root {
+        --ink: #04110d;
+        --panel: #0d231c;
+        --line: #1d4436;
+        --mist: #b7d6c9;
+        --emerald: #34d399;
+        --amber: #fbbf24;
+        --red: #f87171;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--ink);
+        color: #e8f5ef;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Noto Sans Devanagari", sans-serif;
+      }
+      .slide {
+        width: 1280px;
+        height: 720px;
+        padding: 56px 64px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        page-break-after: always;
+        border-bottom: 1px solid #0a1c16;
+        overflow: hidden;
+      }
+      @media print {
+        .slide { border-bottom: none; }
+        @page { size: 1280px 720px; margin: 0; }
+      }
+      h1 { font-size: 54px; margin: 0; letter-spacing: -0.02em; }
+      h2 { font-size: 34px; margin: 0 0 6px; color: var(--emerald); }
+      h3 { font-size: 19px; margin: 0 0 6px; }
+      p { margin: 0; line-height: 1.5; color: var(--mist); font-size: 17px; }
+      .small { font-size: 14px; color: #7fae9b; }
+      .row { display: flex; gap: 20px; }
+      .card { background: linear-gradient(180deg, rgba(18,49,40,.9), rgba(10,28,22,.92)); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; flex: 1; }
+      .stat { font-size: 34px; color: var(--emerald); font-weight: 700; }
+      .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+      .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+      .chip { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font-size: 13px; color: var(--mist); margin-right: 6px; }
+      img { max-width: 100%; border-radius: 12px; border: 1px solid var(--line); }
+      .footer { margin-top: auto; display: flex; justify-content: space-between; font-size: 13px; color: #7fae9b; }
+      ul { margin: 6px 0 0; padding-left: 20px; color: var(--mist); font-size: 16px; line-height: 1.55; }
+      li { margin-bottom: 6px; }
+      .accent { color: var(--amber); }
+      .danger { color: var(--red); }
+    </style>
+  </head>
+  <body>
+    <!-- 1 · Title -->
+    <section class="slide">
+      <div style="display:flex;align-items:center;gap:16px">
+        <svg width="56" height="56" viewBox="0 0 32 32"><path fill="#34d399" d="M16 2 4 7v9c0 7.2 5.1 12.3 12 14 6.9-1.7 12-6.8 12-14V7L16 2Z"/><path fill="#04110d" d="m14.3 20.3-4-4 1.9-1.9 2.1 2.1 5.6-5.6 1.9 1.9-7.5 7.5Z"/></svg>
+        <h1>Rakshak</h1>
+        <span class="chip">BunnieX Hackathon 2026</span>
+      </div>
+      <h2 style="max-width:1000px;font-size:38px">Blocklists stop numbers. Rakshak understands the script — and fights back.</h2>
+      <p style="max-width:1000px;font-size:20px">
+        A real-time AI that sits inside the scam call: it warns the victim mid-call, alerts the family,
+        baits the scammer to expose their payment rails, and turns every call into evidence and shared intelligence.
+      </p>
+      <div class="row" style="margin-top:12px">
+        <div class="card"><h3>Listen</h3><p class="small">Streaming STT + fraud-script classifier tracks the digital-arrest playbook stage by stage.</p></div>
+        <div class="card"><h3>Intervene</h3><p class="small">Hindi/English guardian voice, stop card, live family alert — before money moves.</p></div>
+        <div class="card"><h3>Fight back</h3><p class="small">A counter-agent stalls the scammer and captures account numbers / UPI IDs as evidence.</p></div>
+      </div>
+      <div class="footer"><span>Live demo: rakshak.kiter0211.workers.dev</span><span>Featherless · Cloudflare Workers AI · Agents SDK</span></div>
+    </section>
+
+    <!-- 2 · Problem -->
+    <section class="slide">
+      <h2>The problem: ₹22,495 crore stolen in one year</h2>
+      <div class="grid3">
+        <div class="card"><div class="stat">₹22,495 cr</div><p class="small">Lost to cyber fraud in India in 2025 (NHRC / I4C reporting)</p></div>
+        <div class="card"><div class="stat">297,727</div><p class="small">Digital-arrest complaints between 2022 and May 2026</p></div>
+        <div class="card"><div class="stat">2–13%</div><p class="small">Recovery rate after money leaves — speed is everything</p></div>
+      </div>
+      <div class="grid2" style="margin-top:16px">
+        <div class="card">
+          <h3>The attack is a script</h3>
+          <ul>
+            <li>Authority pretext: “I am Inspector Sharma from the CBI…”</li>
+            <li>False accusation: Aadhaar linked to a narcotics case</li>
+            <li>Isolation: “Do not tell anyone, stay on this video call”</li>
+            <li>Fund verification: transfer to an “RBI account”</li>
+            <li>Extraction: irreversible UPI / RTGS transfers</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Why existing tools fail</h3>
+          <ul>
+            <li>Caller ID and blocklists decide <em>before</em> the call — the fraud happens inside it.</li>
+            <li>US/EU elder-fraud products screen or terminate calls, US-first, no Indian scripts.</li>
+            <li>Government portals act after the money is gone.</li>
+            <li>Voice cloning now needs only 3–5 seconds of public audio.</li>
+          </ul>
+          <p class="accent" style="margin-top:10px">Nobody acts while the victim is still on the line.</p>
+        </div>
+      </div>
+      <div class="footer"><span>Sources: NHRC, I4C/MHA reporting, Supreme Court proceedings 2026, Karnataka Home Dept</span><span>2 / 6</span></div>
+    </section>
+
+    <!-- 3 · Product -->
+    <section class="slide">
+      <h2>What Rakshak does — in the middle of the call</h2>
+      <div class="grid2">
+        <div class="card">
+          <h3>1 · Listen</h3>
+          <p class="small">Deepgram Nova-3 transcribes the call in real time. A Featherless open-weight LLM classifies family + stage against a genome of known scripts.</p>
+          <h3 style="margin-top:12px">2 · Intervene</h3>
+          <p class="small">At the isolation or payment cue: guardian voice (Kokoro, Hindi/English), a stop card, and a live alert to the family war room.</p>
+          <h3 style="margin-top:12px">3 · Fight back</h3>
+          <p class="small">The counter-agent takes over as a slow, hard-of-hearing persona, stalls the scammer and makes them repeat payment details.</p>
+        </div>
+        <div class="card">
+          <h3>4 · Recover</h3>
+          <p class="small">Golden-hour pack: timeline, red flags, caller identifiers, pre-filled complaint draft for cybercrime.gov.in / 1930, bank + UPI freeze checklist.</p>
+          <h3 style="margin-top:12px">5 · Learn</h3>
+          <p class="small">Every confirmed call contributes to the <strong>Scam Genome</strong> — script fingerprints and scammer identifiers. Blocklists can’t compound; this can.</p>
+          <h3 style="margin-top:12px">Who it’s for</h3>
+          <p class="small">The buyer is the adult child; the protected user is the parent. One-tap protection, zero setup for the parent.</p>
+        </div>
+      </div>
+      <div class="footer"><span>Not a dashboard. A guardian that acts.</span><span>3 / 6</span></div>
+    </section>
+
+    <!-- 4 · Proof -->
+    <section class="slide">
+      <h2>Live proof (nothing mocked)</h2>
+      <div class="grid2" style="align-items:start">
+        <img src="screenshots/04-call-warning.png" alt="Guardian warning" />
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <img src="screenshots/05-war-room.png" alt="Family war room" />
+          <div class="card">
+            <h3>Captured on a real run</h3>
+            <ul>
+              <li>Stage progression: <span class="mono">pretext → isolation → extraction</span>, severity 90/100</li>
+              <li>Spoken digits → <span class="mono">account 504122339910</span></li>
+              <li>Mis-heard UPI → repaired to <span class="mono">verificil@okaxis</span></li>
+              <li>Classification latency ~2s on <span class="mono">DeepSeek-V4-Flash</span> (Featherless)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="footer"><span>The war room includes an audit trail of every model call, latency and fallback</span><span>4 / 6</span></div>
+    </section>
+
+    <!-- 5 · Architecture -->
+    <section class="slide">
+      <h2>How it works</h2>
+      <div class="grid2">
+        <div class="card" style="font-family:ui-monospace,monospace;font-size:13px;line-height:1.7;white-space:pre-wrap">
+Parent Shield (PWA)
+  │  audio + events over WebSocket
+  ▼
+Durable Object “CallAgent”  ──  Deepgram Nova-3 STT
+  │                              Featherless DeepSeek-V4-Flash
+  │                              Kokoro TTS (guardian + decoy)
+  │                              script state machine + policy
+  │                              identifier extraction (words→digits, fuzzy UPI)
+  ▼
+Family War Room  ◄── live transcript, alerts, actions
+Golden-hour pack ◄── evidence bundle + complaint draft
+Scam Genome      ◄── GenomeAgent DO (scripts + identifier index)
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="card">
+            <h3>Sponsor tech at the centre</h3>
+            <p class="small">Featherless runs the fraud classifier and both synthetic voices through one OpenAI-compatible API. Deepgram Nova-3 provides realtime STT; Workers AI backs it up, and Cloudflare runs the realtime Durable Object runtime.</p>
+          </div>
+          <div class="card">
+            <h3>Engineered for honesty</h3>
+            <p class="small">Schema-validated JSON, deterministic rule-engine fallback, TTS fallback chain, visible audit trail, and a documented “simulated vs live” boundary.</p>
+          </div>
+          <div class="card">
+            <h3>Privacy & safety</h3>
+            <p class="small">Consent-first, transient audio, scoped guardian access, no payments executed, fictional decoy persona.</p>
+          </div>
+        </div>
+      </div>
+      <div class="footer"><span>Cloudflare Workers · Durable Objects · Agents SDK · Featherless</span><span>5 / 6</span></div>
+    </section>
+
+    <!-- 6 · Impact -->
+    <section class="slide">
+      <h2>Impact & what’s next</h2>
+      <div class="grid2">
+        <div class="card">
+          <h3>Why this can be a company</h3>
+          <ul>
+            <li><strong>Buyer:</strong> adult children (₹99–199/mo family plan); B2B2C with banks, insurers and senior-living communities who bear elder-fraud liability.</li>
+            <li><strong>Moat:</strong> the Scam Genome compounding registry + India-specific script intelligence + distribution via family sharing.</li>
+            <li><strong>Timing:</strong> losses peaked 2024–26; Truecaller validated household demand but stops at caller ID; regulation is pushing the ecosystem toward intervention.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Roadmap</h3>
+          <ul>
+            <li>Telephony bridge (call forwarding to a screening line).</li>
+            <li>WhatsApp/SMS guardian alerts.</li>
+            <li>Voice-authenticity check against enrolled family voiceprints.</li>
+            <li>More Indian languages; public Scam Genome API for banks and NGOs.</li>
+          </ul>
+          <p style="margin-top:12px"><span class="chip">Live demo</span><span class="chip">github.com/PhiBao/rakshak</span></p>
+        </div>
+      </div>
+      <h2 style="margin-top:10px;font-size:30px">Rakshak protects one family. The Genome protects everyone.</h2>
+      <div class="footer"><span>Built for BunnieX Hackathon 2026 · TechieBunnies</span><span>6 / 6</span></div>
+    </section>
+  </body>
+</html>

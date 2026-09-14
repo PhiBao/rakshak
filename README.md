@@ -9,15 +9,15 @@ baits the scammer with a counter-agent to expose their payment rails, and turns 
 a filing-ready complaint pack.
 
 - **Live demo:** https://rakshak.kiter0211.workers.dev
-- **Demo video:** [docs/submission/rakshak-demo.mp4](docs/submission/rakshak-demo.mp4)
-- **Slides:** [docs/submission/rakshak-slides.pdf](docs/submission/rakshak-slides.pdf)
+- **Demo video:** [assets/rakshak-demo.mp4](assets/rakshak-demo.mp4)
+- **Slides:** [assets/rakshak-slides.pdf](assets/rakshak-slides.pdf)
 - Built for the **BunnieX Hackathon 2026** (TechieBunnies).
 
-![Guardian warning](docs/screenshots/01-guardian-warning.png)
+![Guardian warning](assets/screenshots/01-guardian-warning.png)
 
 <p align="center">
-  <img src="docs/screenshots/02-family-war-room.png" width="49%" alt="Family war room" />
-  <img src="docs/screenshots/03-golden-hour.png" width="49%" alt="Golden-hour recovery pack" />
+  <img src="assets/screenshots/02-family-war-room.png" width="49%" alt="Family war room" />
+  <img src="assets/screenshots/03-golden-hour.png" width="49%" alt="Golden-hour recovery pack" />
 </p>
 
 ---
@@ -98,7 +98,7 @@ shared script intelligence. Number blocklists cannot do any of that.
 - **Live app:** https://rakshak.kiter0211.workers.dev — open it and press **Run the digital-arrest demo**.
   The demo streams a real synthetic scam recording through the live pipeline: real speech recognition,
   real model inference, real voice warnings. Nothing is mocked.
-- **Video:** [docs/submission/rakshak-demo.mp4](docs/submission/rakshak-demo.mp4) (2–3 minutes, narrated).
+- **Video:** [assets/rakshak-demo.mp4](assets/rakshak-demo.mp4) (2–3 minutes, narrated).
 - **60-second walkthrough:** open the live demo → watch the risk meter climb
   (`pretext → accusation → isolation`) → the guardian voice interrupts at *"do not tell anyone"* →
   open the war room → engage the counter-agent → watch `account 504122339910` and
@@ -129,7 +129,7 @@ src/client/        React PWA — Parent Shield, War Room, Evidence, Genome
 src/shared/        Types + Scam Genome seed (5 script families)
 data/demo-calls/   Synthetic demo call script + provenance
 scripts/           Demo audio generation, e2e tests, automated video recorder
-docs/              Strategy, submission deck, screenshots, video
+assets/            Demo video, slides, screenshots
 ```
 
 Local setup:

@@ -9,3 +9,10 @@ dist/
 .DS_Store
 coverage/
 .vite/
+
+# local-only workspace files (not published)
+AGENTS.md
+FOUNDER.md
+opencode.json
+opencode.alt.json
+docs/

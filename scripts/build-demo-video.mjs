@@ -21,7 +21,7 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const workDir = process.argv[2];
-const outFile = process.argv[3] ?? join(root, "docs", "submission", "rakshak-demo.mp4");
+const outFile = process.argv[3] ?? join(root, "assets", "rakshak-demo.mp4");
 if (!workDir || !existsSync(join(workDir, "meta.json"))) {
   console.error("usage: node scripts/build-demo-video.mjs <workDir with meta.json> <outFile>");
   process.exit(1);
