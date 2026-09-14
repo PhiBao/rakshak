@@ -242,7 +242,8 @@ async function main() {
   placeSequential("recovery", tourMarks.evidence ? (tourMarks.evidence - videoStartMs) / 1000 + 0.8 : undefined);
   placeSequential("identifiers", undefined);
   placeSequential("genome", tourMarks.genome ? (tourMarks.genome - videoStartMs) / 1000 + 0.8 : undefined);
-  placeSequential("closing", Math.max(0, demoDur + 2));
+  const closingStart = placeSequential("closing", Math.max(0, demoDur + 2));
+  const lastVoiceEnd = voiceTrack.reduce((max, line) => Math.max(max, line.startSec + line.duration), closingStart);
 
   voiceTrack.sort((a, b) => a.startSec - b.startSec);
   const overlapsFound = voiceTrack.filter((line, index) => {
@@ -253,6 +254,7 @@ async function main() {
     `voices: ${voiceTrack.map((line) => `${line.role}@${line.startSec.toFixed(1)}`).join(" ")}`
   );
   console.log(`voice overlaps: ${overlapsFound.length === 0 ? "none" : overlapsFound.map((l) => l.role).join(", ")}`);
+  const demoTotal = Math.max(demoDur, lastVoiceEnd + 1.5);
 
   // Duck the call audio under every voice line.
   const duckIntervals = voiceTrack.map((line) => [line.startSec - 0.15, line.startSec + line.duration + 0.25]);
@@ -293,8 +295,8 @@ async function main() {
     "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2,scale=1280:-2,fps=12",
     "-c:v", "libx264", "-preset", "veryfast", "-crf", "24", "-pix_fmt", "yuv420p",
     "-c:a", "aac", "-b:a", "144k",
-    "-af", `apad=whole_dur=${(demoDur + 5.5).toFixed(2)}`,
-    "-t", (demoDur + 5).toFixed(2),
+    "-af", `apad=whole_dur=${(demoTotal + 0.5).toFixed(2)}`,
+    "-t", demoTotal.toFixed(2),
     join(buildDir, "demo.mp4")
   ]);
 
